@@ -57,30 +57,81 @@ class _DriverListScreenState extends State<DriverListScreen> {
     _load();
   }
 
+  Future<bool> _confirmDelete(Driver driver) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить водителя?'),
+        content: Text('Это удалит запись «${driver.fullName}» без возможности восстановления.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Отмена')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  Future<void> _deleteDriver(Driver driver) async {
+    await DatabaseHelper.instance.deleteDriver(driver.id!);
+    setState(() => _drivers.removeWhere((d) => d.id == driver.id));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Водители')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _drivers.isEmpty
-              ? const _EmptyState()
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _drivers.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final driver = _drivers[index];
-                      return _DriverCard(
-                        driver: driver,
-                        onTap: () => _openForm(driver: driver),
-                        onStatusTap: () => _changeStatus(driver),
-                      );
-                    },
+      appBar: AppBar(
+        title: const Text('Водители'),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(28),
+          child: Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: Text('Салам, Вугар!', style: TextStyle(fontSize: 14, color: Colors.black54)),
+          ),
+        ),
+      ),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: _loading
+            ? const Center(key: ValueKey('loading'), child: CircularProgressIndicator())
+            : _drivers.isEmpty
+                ? const _EmptyState(key: ValueKey('empty'))
+                : RefreshIndicator(
+                    key: const ValueKey('list'),
+                    onRefresh: _load,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _drivers.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final driver = _drivers[index];
+                        return Dismissible(
+                          key: ValueKey(driver.id),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (_) => _confirmDelete(driver),
+                          onDismissed: (_) => _deleteDriver(driver),
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade400,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.delete_outline, color: Colors.white),
+                          ),
+                          child: _DriverCard(
+                            driver: driver,
+                            onTap: () => _openForm(driver: driver),
+                            onStatusTap: () => _changeStatus(driver),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
         icon: const Icon(Icons.add),
@@ -91,7 +142,7 @@ class _DriverListScreenState extends State<DriverListScreen> {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +218,8 @@ class _DriverCard extends StatelessWidget {
               InkWell(
                 onTap: onStatusTap,
                 borderRadius: BorderRadius.circular(20),
-                child: Container(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.12),
