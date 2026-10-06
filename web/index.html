@@ -18,6 +18,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="Трекер водителей и статуса рейсов.">
 
   <!-- iOS meta tags & icons -->
@@ -32,8 +33,129 @@
 
   <title>Водители</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Подсказка «Добавить на экран Домой» -->
+  <style>
+    #a2hs {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 2147483647;
+      display: none; justify-content: center;
+      padding: 0 12px calc(12px + env(safe-area-inset-bottom));
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      transform: translateY(110%); transition: transform 250ms ease-out;
+    }
+    #a2hs.show { transform: translateY(0); }
+    #a2hs .card {
+      width: 100%; max-width: 440px; box-sizing: border-box;
+      background: #fff; color: #1c1b1f; border-radius: 20px; padding: 18px 18px 14px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .25);
+    }
+    #a2hs .head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    #a2hs .head img { width: 48px; height: 48px; border-radius: 12px; }
+    #a2hs .title { font-size: 19px; font-weight: 700; line-height: 1.2; }
+    #a2hs .sub { font-size: 15px; color: #555; margin-top: 2px; }
+    #a2hs ol { margin: 0 0 14px; padding: 0; list-style: none; counter-reset: s; }
+    #a2hs li {
+      counter-increment: s; display: flex; align-items: center; gap: 8px;
+      font-size: 17px; line-height: 1.35; padding: 7px 0;
+    }
+    #a2hs li::before {
+      content: counter(s); flex: none; width: 26px; height: 26px; border-radius: 50%;
+      background: #3F51B5; color: #fff; font-size: 15px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #a2hs .ic { display: inline-flex; vertical-align: middle; color: #007AFF; }
+    #a2hs .btns { display: flex; gap: 10px; }
+    #a2hs button {
+      flex: 1; border: 0; border-radius: 12px; padding: 13px; font-size: 17px; font-weight: 600;
+      font-family: inherit; cursor: pointer;
+    }
+    #a2hs .later { background: #eceaf4; color: #3F51B5; }
+    #a2hs .install { background: #3F51B5; color: #fff; }
+  </style>
 </head>
 <body>
+  <div id="a2hs" role="dialog" aria-label="Добавить на экран Домой">
+    <div class="card">
+      <div class="head">
+        <img src="icons/Icon-192.png" alt="">
+        <div>
+          <div class="title">Добавьте иконку на экран</div>
+          <div class="sub">Чтобы открывать одним нажатием</div>
+        </div>
+      </div>
+      <ol id="a2hs-ios" hidden>
+        <li><span>Внизу нажмите
+          <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/></svg></span>
+          или
+          <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7.5 7.5 12 3l4.5 4.5"/><path d="M8 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-2"/></svg></span>,
+          потом «Поделиться»</span></li>
+        <li><span>Выберите <b>«На экран&nbsp;„Домой“»</b></span></li>
+        <li><span>Нажмите <b>«Добавить»</b></span></li>
+      </ol>
+      <div class="btns">
+        <button class="later" type="button">Не сейчас</button>
+        <button class="install" type="button" hidden>Установить</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var KEY = 'a2hs-dismissed-at';
+      var SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
+
+      var standalone = window.navigator.standalone === true ||
+        window.matchMedia('(display-mode: standalone)').matches;
+      if (standalone) return;
+
+      try {
+        var t = Number(localStorage.getItem(KEY));
+        if (t && Date.now() - t < SNOOZE_MS) return;
+      } catch (e) {}
+
+      var box = document.getElementById('a2hs');
+      var installBtn = box.querySelector('.install');
+      var deferred = null;
+
+      function show() {
+        box.style.display = 'flex';
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () { box.classList.add('show'); });
+        });
+      }
+      function hide(remember) {
+        box.classList.remove('show');
+        setTimeout(function () { box.style.display = 'none'; }, 260);
+        if (remember) { try { localStorage.setItem(KEY, String(Date.now())); } catch (e) {} }
+      }
+
+      box.querySelector('.later').addEventListener('click', function () { hide(true); });
+
+      // iPhone/iPad: сайт не может сам добавить иконку, показываем инструкцию.
+      var ua = navigator.userAgent;
+      var isIOS = /iPhone|iPad|iPod/.test(ua) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (isIOS) {
+        document.getElementById('a2hs-ios').hidden = false;
+        setTimeout(show, 1200);
+        return;
+      }
+
+      // Android / Chrome: настоящая кнопка «Установить».
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferred = e;
+        installBtn.hidden = false;
+        show();
+      });
+      installBtn.addEventListener('click', function () {
+        if (!deferred) return;
+        deferred.prompt();
+        deferred.userChoice.then(function (r) { hide(r.outcome !== 'accepted'); });
+        deferred = null;
+      });
+      window.addEventListener('appinstalled', function () { hide(false); });
+    })();
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
